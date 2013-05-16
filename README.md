@@ -46,3 +46,5 @@ One to add dependencies, and a second to actually pull in these definitions.
         
 
 3. Recursively locate manifest files.
+
+4. Version range support? e.g. 'v1.*' or similar.
