@@ -18,11 +18,17 @@ import (
 )
 
 var cmdGet = &Command{
-	UsageLine: "get [-d] [-fix] [-u] [build flags] [packages]",
+	UsageLine: "get [-d] [-fix] [-u] [-repo <repo>] [-tag <tag>] [build flags] [packages]",
 	Short:     "download and install packages and dependencies",
 	Long: `
 Get downloads and installs the packages named by the import paths,
 along with their dependencies.
+
+The -repo flag instructs get to download the package from the specified repo, as
+opposed to the one suggested by its 'import path'
+
+The -tag flag instructs get to check out a specified tag name, as
+opposed to the one suggested by its 'import path'
 
 The -d flag instructs get to stop after downloading the packages; that is,
 it instructs get not to install the packages.
@@ -55,6 +61,8 @@ See also: go build, go install, go clean.
 var getD = cmdGet.Flag.Bool("d", false, "")
 var getU = cmdGet.Flag.Bool("u", false, "")
 var getFix = cmdGet.Flag.Bool("fix", false, "")
+var getRepo = cmdGet.Flag.String("repo", "", "")
+var getTag = cmdGet.Flag.String("tag", "", "")
 
 func init() {
 	addBuildFlags(cmdGet)
@@ -150,7 +158,15 @@ func download(arg string, stk *importStack) {
 		return
 	}
 	downloadCache[arg] = true
-
+	//add url and tag info
+	if *getRepo != "" {
+		p.RepoPath = *getRepo
+		logf("Setting repo path to %s", p.RepoPath)
+	}
+	if *getTag != "" {
+		p.RepoTag = *getTag
+		logf("Setting repo tag to %s", p.RepoTag)
+	}
 	pkgs := []*Package{p}
 	wildcardOkay := len(*stk) == 0
 
@@ -230,19 +246,31 @@ func downloadPackage(p *Package) error {
 		err            error
 	)
 	if p.build.SrcRoot != "" {
+		logf("Directory exists")
 		// Directory exists.  Look for checkout along path to src.
 		vcs, rootPath, err = vcsForDir(p)
 		if err != nil {
 			return err
 		}
 		repo = "<local>" // should be unused; make distinctive
-	} else {
+	} else if p.RepoPath != "" {
 		// Analyze the import path to determine the version control system,
 		// repository, and the import path for the root of the repository.
-		rr, err := repoRootForImportPath(p.ImportPath)
+		rr, err := repoRootForImportPath(p.RepoPath, p.ImportPath)
 		if err != nil {
 			return err
 		}
+		logf("Using RepoPath")
+		vcs, repo, rootPath = rr.vcs, rr.repo, rr.root
+	} else {
+
+		// Analyze the import path to determine the version control system,
+		// repository, and the import path for the root of the repository.
+		rr, err := repoRootForImportPath(p.ImportPath, p.ImportPath)
+		if err != nil {
+			return err
+		}
+		logf("Using ImportPath")
 		vcs, repo, rootPath = rr.vcs, rr.repo, rr.root
 	}
 
@@ -316,7 +344,7 @@ func downloadPackage(p *Package) error {
 	if i := strings.Index(vers, " "); i >= 0 {
 		vers = vers[:i]
 	}
-	if err := vcs.tagSync(root, selectTag(vers, tags)); err != nil {
+	if err := vcs.tagSync(root, selectTag(*getTag, vers, tags)); err != nil {
 		return err
 	}
 
@@ -339,7 +367,17 @@ var goTag = regexp.MustCompile(
 //
 // NOTE(rsc): Eventually we will need to decide on some logic here.
 // For now, there is only "go1".  This matches the docs in go help get.
-func selectTag(goVersion string, tags []string) (match string) {
+func selectTag(preferredTag, goVersion string, tags []string) (match string) {
+	//gopin: exact comparison (for now)
+	if preferredTag != "" {
+		for _, t := range tags {
+			if t == preferredTag {
+				logf("Found tag %s", preferredTag)
+				return t
+			}
+		}
+		logf("Tag %s NOT found", preferredTag)
+	}
 	for _, t := range tags {
 		if t == "go1" {
 			return "go1"

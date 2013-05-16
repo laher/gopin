@@ -328,10 +328,10 @@ type repoRoot struct {
 
 // repoRootForImportPath analyzes importPath to determine the
 // version control system, and code repository to use.
-func repoRootForImportPath(importPath string) (*repoRoot, error) {
-	rr, err := repoRootForImportPathStatic(importPath, "")
+func repoRootForImportPath(repoPath, importPath string) (*repoRoot, error) {
+	rr, err := repoRootForImportPathStatic(repoPath, importPath, "")
 	if err == errUnknownSite {
-		rr, err = repoRootForImportDynamic(importPath)
+		rr, err = repoRootForImportDynamic(repoPath, importPath)
 
 		// repoRootForImportDynamic returns error detail
 		// that is irrelevant if the user didn't intend to use a
@@ -361,18 +361,18 @@ var errUnknownSite = errors.New("dynamic lookup required to find mapping")
 // containing its VCS type (foo.com/repo.git/dir)
 //
 // If scheme is non-empty, that scheme is forced.
-func repoRootForImportPathStatic(importPath, scheme string) (*repoRoot, error) {
-	if strings.Contains(importPath, "://") {
-		return nil, fmt.Errorf("invalid import path %q", importPath)
+func repoRootForImportPathStatic(repoPath, importPath, scheme string) (*repoRoot, error) {
+	if strings.Contains(repoPath, "://") {
+		return nil, fmt.Errorf("invalid import path %q", repoPath)
 	}
 	for _, srv := range vcsPaths {
-		if !strings.HasPrefix(importPath, srv.prefix) {
+		if !strings.HasPrefix(repoPath, srv.prefix) {
 			continue
 		}
-		m := srv.regexp.FindStringSubmatch(importPath)
+		m := srv.regexp.FindStringSubmatch(repoPath)
 		if m == nil {
 			if srv.prefix != "" {
-				return nil, fmt.Errorf("invalid %s import path %q", srv.prefix, importPath)
+				return nil, fmt.Errorf("invalid %s import path %q", srv.prefix, repoPath)
 			}
 			continue
 		}
@@ -380,7 +380,7 @@ func repoRootForImportPathStatic(importPath, scheme string) (*repoRoot, error) {
 		// Build map of named subexpression matches for expand.
 		match := map[string]string{
 			"prefix": srv.prefix,
-			"import": importPath,
+			"import": repoPath,
 		}
 		for i, name := range srv.regexp.SubexpNames() {
 			if name != "" && match[name] == "" {
@@ -417,7 +417,8 @@ func repoRootForImportPathStatic(importPath, scheme string) (*repoRoot, error) {
 		rr := &repoRoot{
 			vcs:  vcs,
 			repo: match["repo"],
-			root: match["root"],
+			//root: match["root"],
+			root: importPath,
 		}
 		return rr, nil
 	}
@@ -428,16 +429,16 @@ func repoRootForImportPathStatic(importPath, scheme string) (*repoRoot, error) {
 // statically known by repoRootForImportPathStatic.
 //
 // This handles "vanity import paths" like "name.tld/pkg/foo".
-func repoRootForImportDynamic(importPath string) (*repoRoot, error) {
+func repoRootForImportDynamic(repoPath, importPath string) (*repoRoot, error) {
 	slash := strings.Index(importPath, "/")
 	if slash < 0 {
-		return nil, errors.New("import path doesn't contain a slash")
+		return nil, errors.New("repo path doesn't contain a slash")
 	}
-	host := importPath[:slash]
+	host := repoPath[:slash]
 	if !strings.Contains(host, ".") {
-		return nil, errors.New("import path doesn't contain a hostname")
+		return nil, errors.New("repo path doesn't contain a hostname")
 	}
-	urlStr, body, err := httpsOrHTTP(importPath)
+	urlStr, body, err := httpsOrHTTP(repoPath)
 	if err != nil {
 		return nil, fmt.Errorf("http/https fetch: %v", err)
 	}
@@ -483,7 +484,7 @@ func repoRootForImportDynamic(importPath string) (*repoRoot, error) {
 	rr := &repoRoot{
 		vcs:  vcsByCmd(metaImport.VCS),
 		repo: metaImport.RepoRoot,
-		root: metaImport.Prefix,
+		root: importPath,
 	}
 	if rr.vcs == nil {
 		return nil, fmt.Errorf("%s: unknown vcs %q", urlStr, metaImport.VCS)

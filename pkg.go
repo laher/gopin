@@ -27,6 +27,8 @@ type Package struct {
 	// remove existing ones.  Keep in sync with list.go
 	Dir        string `json:",omitempty"` // directory containing package sources
 	ImportPath string `json:",omitempty"` // import path of package in dir
+	RepoPath   string `json:",omitempty"` // repo path (if different from Import Path)
+	RepoTag    string `json:",omitempty"` // repo tag (if different from vcs default)
 	Name       string `json:",omitempty"` // package name
 	Doc        string `json:",omitempty"` // package documentation string
 	Target     string `json:",omitempty"` // install path
@@ -224,6 +226,7 @@ func loadImport(path string, srcDir string, stk *importStack, importPos []token.
 	p := new(Package)
 	p.local = isLocal
 	p.ImportPath = importPath
+
 	packageCache[importPath] = p
 
 	// Load package.
