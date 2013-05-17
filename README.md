@@ -33,6 +33,9 @@ This is very experimental.
  * I have only used it on a very simple project which only imports standard library packages.
  * I haven't got this working for vanity URLs yet - only the 'static' sites supported currently (wouldn't take long).
 
+My next step will be to fix bugs, test vanity urls and various potential error cases.
+
+
 To NOT Do
 ---------
 
@@ -51,5 +54,6 @@ To do (maybe oneday)
 
         gopin getdeps
 
-
 3. Version range support? e.g. 'v1.*' or similar.
+
+4. Find currently used tag and repo.
