@@ -24,7 +24,8 @@ Hurray!
 
 Also, you can list available tags for a particular import.
 
-   gopin tags github.com/laher/mkdo
+     gopin tags github.com/laher/mkdo
+
 
 Warnings
 --------
