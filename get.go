@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"errors"
 	"go/build"
 	"os"
 	"path/filepath"
@@ -161,11 +162,11 @@ func download(arg string, stk *importStack) {
 	//add url and tag info
 	if *getRepo != "" {
 		p.RepoPath = *getRepo
-		logf("Setting repo path to %s", p.RepoPath)
+		logf("Repo path = %s", p.RepoPath)
 	}
 	if *getTag != "" {
 		p.RepoTag = *getTag
-		logf("Setting repo tag to %s", p.RepoTag)
+		logf("Repo tag = %s", p.RepoTag)
 	}
 	pkgs := []*Package{p}
 	wildcardOkay := len(*stk) == 0
@@ -246,7 +247,10 @@ func downloadPackage(p *Package) error {
 		err            error
 	)
 	if p.build.SrcRoot != "" {
-		logf("Directory exists")
+		logf("Package already exists in gopath.")
+		if p.RepoPath != "" {
+			return errors.New("switching repo not [yet] supported! Please delete the package then try again.")
+		}
 		// Directory exists.  Look for checkout along path to src.
 		vcs, rootPath, err = vcsForDir(p)
 		if err != nil {
