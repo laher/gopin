@@ -348,7 +348,11 @@ func downloadPackage(p *Package) error {
 	if i := strings.Index(vers, " "); i >= 0 {
 		vers = vers[:i]
 	}
-	if err := vcs.tagSync(root, selectTag(*getTag, vers, tags)); err != nil {
+	tag, err := selectTag(*getTag, vers, tags)
+	if err != nil {
+		return err
+	}
+	if err := vcs.tagSync(root, tag); err != nil {
 		return err
 	}
 
@@ -371,23 +375,24 @@ var goTag = regexp.MustCompile(
 //
 // NOTE(rsc): Eventually we will need to decide on some logic here.
 // For now, there is only "go1".  This matches the docs in go help get.
-func selectTag(preferredTag, goVersion string, tags []string) (match string) {
+func selectTag(tag, goVersion string, tags []string) (match string, err error) {
 	//gopin: exact comparison (for now)
-	if preferredTag != "" {
+	if tag != "" {
 		for _, t := range tags {
-			if t == preferredTag {
-				logf("Found tag %s", preferredTag)
-				return t
+			if t == tag {
+				logf("Found tag %s", tag)
+				return t, nil
 			}
 		}
-		logf("Tag %s NOT found", preferredTag)
+		logf("Tag %s NOT found", tag)
+		return "", fmt.Errorf("Tag %s NOT found", tag)
 	}
 	for _, t := range tags {
 		if t == "go1" {
-			return "go1"
+			return "go1", nil
 		}
 	}
-	return ""
+	return "", nil
 
 	/*
 		if goTag.MatchString(goVersion) {
